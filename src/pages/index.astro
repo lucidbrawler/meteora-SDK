@@ -1,5 +1,5 @@
 ---
-
+import DLMMConnector from "../components/DLMMConnector";
 ---
 
 <html lang="en">
@@ -9,9 +9,11 @@
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
+		<title>Meteora DLMM • SDK Playground</title>
 	</head>
-	<body>
-		<h1>Astro</h1>
+	<body class="bg-gray-100 dark:bg-gray-950">
+		<div class="py-12">
+			<DLMMConnector client:load />
+		</div>
 	</body>
 </html>
