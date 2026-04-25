@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DLMM from '@meteora-ag/dlmm';
 import { Connection, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import StatusCard from './StatusCard';
+import PriceChart from './PriceChart';
 
 const DLMMConnector: React.FC = () => {
   const [rpcUrl, setRpcUrl] = useState('https://solana-rpc.publicnode.com');
@@ -14,6 +15,9 @@ const DLMMConnector: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [positionAddress, setPositionAddress] = useState('HP2grHkQbcpFSdoFYpdsD2SEFMFinc37L1AYbbVDSUvU');
   const [positionInfo, setPositionInfo] = useState<any>(null);
+  const [bins, setBins] = useState<any[]>([]);
+  const [triggerPrice1, setTriggerPrice1] = useState(145);
+  const [triggerPrice2, setTriggerPrice2] = useState(135);
 
   const initializeSDK = async () => {
     setLoading(true);
@@ -32,6 +36,20 @@ const DLMMConnector: React.FC = () => {
       const bin = await pool.getActiveBin();
       setActiveBin(bin);
 
+      // Fetch bins for chart
+      try {
+        const binsData = await pool.getBinsAroundActiveBin(40, 40);
+        setBins(binsData.bins || []);
+      } catch (e) {
+        console.warn('Could not fetch bins for chart:', e);
+        setBins([]);
+      }
+
+      // Set smart default triggers around current price
+      const currentPrice = parseFloat(bin?.price?.toString() || '140');
+      setTriggerPrice1(currentPrice * 1.035);
+      setTriggerPrice2(currentPrice * 0.965);
+
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
@@ -48,6 +66,13 @@ const DLMMConnector: React.FC = () => {
       await dlmmPool.refetchStates();
       const bin = await dlmmPool.getActiveBin();
       setActiveBin(bin);
+
+      try {
+        const binsData = await dlmmPool.getBinsAroundActiveBin(40, 40);
+        setBins(binsData.bins || []);
+      } catch (e) {
+        console.warn('Refresh bins failed:', e);
+      }
     } catch (err: any) {
       setError('Refresh failed: ' + err.message);
     } finally {
@@ -77,6 +102,17 @@ const DLMMConnector: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Update trigger defaults when active bin changes
+  useEffect(() => {
+    if (activeBin) {
+      const currentPrice = parseFloat(activeBin?.price?.toString() || '140');
+      if (triggerPrice1 === 145 && triggerPrice2 === 135) {
+        setTriggerPrice1(currentPrice * 1.035);
+        setTriggerPrice2(currentPrice * 0.965);
+      }
+    }
+  }, [activeBin]);
 
   return (
     <div className="dlmm-container">
@@ -132,6 +168,37 @@ const DLMMConnector: React.FC = () => {
         </p>
       </div>
 
+      {/* Trigger Points for Chart */}
+      <div className="grid grid-cols-2 gap-4 mb-2">
+        <div className="dlmm-input-group">
+          <label className="dlmm-label flex items-center gap-2">
+            Trigger 1 <span className="text-amber-500">⚡</span> <span className="text-[10px] text-slate-400">(e.g. Take Profit)</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={triggerPrice1}
+            onChange={(e) => setTriggerPrice1(parseFloat(e.target.value) || 0)}
+            className="dlmm-input border-amber-300 focus:border-amber-500"
+            placeholder="145.00"
+          />
+        </div>
+        <div className="dlmm-input-group">
+          <label className="dlmm-label flex items-center gap-2">
+            Trigger 2 <span className="text-violet-500">🛑</span> <span className="text-[10px] text-slate-400">(e.g. Stop Loss)</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={triggerPrice2}
+            onChange={(e) => setTriggerPrice2(parseFloat(e.target.value) || 0)}
+            className="dlmm-input border-violet-300 focus:border-violet-500"
+            placeholder="135.00"
+          />
+        </div>
+      </div>
+      <p className="text-[10px] text-slate-400 -mt-1 mb-4">These control the horizontal trigger lines on the price chart below</p>
+
       {/* Action Buttons */}
       <div className="dlmm-buttons">
         <button
@@ -176,6 +243,19 @@ const DLMMConnector: React.FC = () => {
         positionAddress={positionAddress}
         success={success}
       />
+
+      {/* Price Chart with Configurable Triggers */}
+      {success && (
+        <PriceChart
+          bins={bins}
+          activeBin={activeBin}
+          positionInfo={positionInfo}
+          triggerPrice1={triggerPrice1}
+          triggerPrice2={triggerPrice2}
+          tokenXSymbol="SOL"
+          tokenYSymbol="USDC"
+        />
+      )}
 
     </div>
   );

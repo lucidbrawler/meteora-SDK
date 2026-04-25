@@ -18,7 +18,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
 }) => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      alert('✅ Full raw JSON copied to clipboard!');
+      alert('Full raw JSON copied to clipboard!');
     });
   };
 
@@ -110,7 +110,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
   // Debug log (open browser console F12 to see the pool structure)
   React.useEffect(() => {
     if (dlmmPool) {
-      console.log('🔍 DLMM Pool keys:', Object.keys(dlmmPool));
+      console.log('DLMM Pool keys:', Object.keys(dlmmPool));
       console.log('Token X mint detected:', getTokenXMint());
       console.log('Token Y mint detected:', getTokenYMint());
     }
@@ -133,7 +133,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
         {/* Pool Active Bin Badge */}
         {activeBin && (
           <div className="px-4 py-1.5 rounded-2xl text-sm font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400 flex items-center gap-2">
-            📍 Active Bin: {bnToString(activeBin.binId)}
+            Active Bin: {bnToString(activeBin.binId)}
           </div>
         )}
 
@@ -147,8 +147,8 @@ const StatusCard: React.FC<StatusCardProps> = ({
           }`}>
             {(activeBin.binId >= positionInfo.positionData.lowerBinId && 
               activeBin.binId <= positionInfo.positionData.upperBinId)
-              ? '✅ Position In Range'
-              : '⚠️ Position Out of Range'}
+              ? 'Position In Range'
+              : 'Position Out of Range'}
           </div>
         )}
       </div>
@@ -189,7 +189,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
               onClick={copyFullJson}
               className="text-xs px-4 py-2 bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-700 rounded-2xl hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors flex items-center gap-2 text-indigo-600 dark:text-indigo-400"
             >
-              📋 Copy Full Raw JSON
+              Copy Full Raw JSON
             </button>
           </div>
 
@@ -220,42 +220,72 @@ const StatusCard: React.FC<StatusCardProps> = ({
           </div>
 
           {/* Vital Details */}
-          <div className="grid grid-cols-2 gap-y-5 text-sm">
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 text-xs">Lower Bin ID</span>
-              <span className="font-mono font-semibold block mt-1 text-lg">
-                {bnToString(positionInfo.positionData.lowerBinId)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 text-xs">Upper Bin ID</span>
-              <span className="font-mono font-semibold block mt-1 text-lg">
-                {bnToString(positionInfo.positionData.upperBinId)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 text-xs">Lower Price (Bin {positionInfo.positionData.lowerBinId})</span>
-              <span className="font-mono block mt-1">
-                {parseFloat(positionInfo.positionData.positionBinData?.[0]?.pricePerToken || '0').toFixed(4)} USDC per SOL
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 text-xs">Upper Price (Bin {positionInfo.positionData.upperBinId})</span>
-              <span className="font-mono block mt-1">
-                {parseFloat(positionInfo.positionData.positionBinData?.slice(-1)[0]?.pricePerToken || '0').toFixed(4)} USDC per SOL
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 text-xs">Fee Owed {tokenXSymbol}</span>
-              <span className="font-mono block mt-1">
-                {formatAmount(positionInfo.positionData.feeX, tokenXSymbol === 'SOL' ? 9 : 6)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 text-xs">Fee Owed {tokenYSymbol}</span>
-              <span className="font-mono block mt-1">
-                {formatAmount(positionInfo.positionData.feeY, tokenYSymbol === 'USDC' ? 6 : 9)}
-              </span>
+          <div>
+            <div className="text-xs font-medium tracking-widest text-indigo-600 dark:text-indigo-400 mb-4 uppercase">Vital Details</div>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Lower Bin ID */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-2.5 border border-emerald-200 dark:border-emerald-800 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-1">
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Lower Bin ID</span>
+                </div>
+                <div className="font-mono text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                  {bnToString(positionInfo.positionData.lowerBinId)}
+                </div>
+              </div>
+
+              {/* Upper Bin ID */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-2.5 border border-emerald-200 dark:border-emerald-800 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-1">
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Upper Bin ID</span>
+                </div>
+                <div className="font-mono text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                  {bnToString(positionInfo.positionData.upperBinId)}
+                </div>
+              </div>
+
+              {/* Lower Price */}
+              <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 border border-indigo-200 dark:border-indigo-800 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Lower Price (Bin {positionInfo.positionData.lowerBinId})</span>
+                </div>
+                <div className="font-mono text-3xl font-bold text-indigo-700 dark:text-indigo-300">
+                  {parseFloat(positionInfo.positionData.positionBinData?.[0]?.pricePerToken || '0').toFixed(4)}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">USDC per SOL</div>
+              </div>
+
+              {/* Upper Price */}
+              <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 border border-indigo-200 dark:border-indigo-800 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Upper Price (Bin {positionInfo.positionData.upperBinId})</span>
+                </div>
+                <div className="font-mono text-3xl font-bold text-indigo-700 dark:text-indigo-300">
+                  {parseFloat(positionInfo.positionData.positionBinData?.slice(-1)[0]?.pricePerToken || '0').toFixed(4)}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">USDC per SOL</div>
+              </div>
+
+              {/* Fee Owed X */}
+              <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 border border-amber-200 dark:border-amber-800 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Fee Owed {tokenXSymbol}</span>
+                </div>
+                <div className="font-mono text-3xl font-bold text-amber-700 dark:text-amber-300">
+                  {formatAmount(positionInfo.positionData.feeX, tokenXSymbol === 'SOL' ? 9 : 6)}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">{tokenXSymbol}</div>
+              </div>
+
+              {/* Fee Owed Y */}
+              <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 border border-amber-200 dark:border-amber-800 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-2">
+                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Fee Owed {tokenYSymbol}</span>
+                </div>
+                <div className="font-mono text-3xl font-bold text-amber-700 dark:text-amber-300">
+                  {formatAmount(positionInfo.positionData.feeY, tokenYSymbol === 'USDC' ? 6 : 9)}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">{tokenYSymbol}</div>
+              </div>
             </div>
           </div>
         </div>
