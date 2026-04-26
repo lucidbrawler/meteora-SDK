@@ -22,7 +22,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const [hoveredBin, setHoveredBin] = useState<any>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  // Safe number converter
   const toNum = (val: any): number => {
     if (!val) return 0;
     if (typeof val === 'number') return val;
@@ -58,9 +57,9 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const minPrice = Math.min(...prices) * 0.92;
   const maxPrice = Math.max(...prices) * 1.08;
 
-  const width = 620;
+  const width = 640;
   const height = 320;
-  const padding = { left: 70, right: 20, top: 20, bottom: 50 };
+  const padding = { left: 72, right: 52, top: 22, bottom: 48 };
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
@@ -71,26 +70,21 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const yScale = (price: number) => 
     padding.top + chartHeight - ((price - minPrice) / Math.max(0.0001, maxPrice - minPrice)) * chartHeight;
 
-  // Line path
   const linePath = sortedBins
     .map((b, i) => `${i === 0 ? 'M' : 'L'} ${xScale(b.binId)} ${yScale(b.price)}`)
     .join(' ');
 
-  // Active bin
   const activeBinId = toNum(activeBin?.binId);
   const activePrice = toNum(activeBin?.price || activeBin?.pricePerToken);
   const activeX = xScale(activeBinId);
   const activeY = yScale(activePrice);
 
-  // Position boundaries
   const posLowerBin = positionInfo?.positionData ? toNum(positionInfo.positionData.lowerBinId) : null;
   const posUpperBin = positionInfo?.positionData ? toNum(positionInfo.positionData.upperBinId) : null;
 
-  // Trigger Y positions
   const trigger1Y = yScale(triggerPrice1);
   const trigger2Y = yScale(triggerPrice2);
 
-  // Handle mouse move for hover
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -98,7 +92,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
     setMousePos({ x: mouseX, y: mouseY });
 
-    // Find closest bin
     let closest = sortedBins[0];
     let minDist = Infinity;
     sortedBins.forEach(b => {
@@ -110,7 +103,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
       }
     });
 
-    if (minDist < 30) { // within 30px
+    if (minDist < 30) {
       setHoveredBin(closest);
     } else {
       setHoveredBin(null);
@@ -196,7 +189,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
             />
           )}
 
-          {/* Soft gradient area fill under price line (makes it look curvier & premium) */}
+          {/* Soft gradient area fill under price line */}
           <defs>
             <linearGradient id="priceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
@@ -208,7 +201,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
             fill="url(#priceGradient)"
           />
 
-          {/* Price Line - smoother & slightly thicker */}
+          {/* Price Line */}
           <path 
             d={linePath} 
             fill="none" 
@@ -304,7 +297,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
             textAnchor="end" 
             className="text-[11px] font-semibold fill-amber-600 dark:fill-amber-400"
           >
-            TRIGGER 1: {triggerPrice1.toFixed(2)}
+            TRIGGER 1: {triggerPrice1.toFixed(5)}
           </text>
 
           {/* Trigger 2 Horizontal Line */}
@@ -324,7 +317,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
             textAnchor="end" 
             className="text-[11px] font-semibold fill-violet-600 dark:fill-violet-400"
           >
-            TRIGGER 2: {triggerPrice2.toFixed(2)}
+            TRIGGER 2: {triggerPrice2.toFixed(5)}
           </text>
 
           {/* Current Price Label */}
@@ -388,7 +381,6 @@ const PriceChart: React.FC<PriceChartProps> = ({
           </text>
         </svg>
 
-        {/* Legend */}
         <div className="flex flex-wrap gap-4 mt-3 text-xs">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-0.5 bg-indigo-500" />

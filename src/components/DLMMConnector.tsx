@@ -16,8 +16,18 @@ const DLMMConnector: React.FC = () => {
   const [positionAddress, setPositionAddress] = useState('HP2grHkQbcpFSdoFYpdsD2SEFMFinc37L1AYbbVDSUvU');
   const [positionInfo, setPositionInfo] = useState<any>(null);
   const [bins, setBins] = useState<any[]>([]);
-  const [triggerPrice1, setTriggerPrice1] = useState(145);
-  const [triggerPrice2, setTriggerPrice2] = useState(135);
+  const [triggerPrice1, setTriggerPrice1] = useState(0.00705);
+  const [triggerPrice2, setTriggerPrice2] = useState(0.00695);
+  const [triggerMin, setTriggerMin] = useState(0.0065);
+  const [triggerMax, setTriggerMax] = useState(0.0075);
+
+  const getNumericPrice = (val: any): number => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') return parseFloat(val) || 0;
+    if (val && typeof val.toString === 'function') return parseFloat(val.toString()) || 0;
+    return 0;
+  };
 
   const initializeSDK = async () => {
     setLoading(true);
@@ -25,6 +35,8 @@ const DLMMConnector: React.FC = () => {
     setSuccess(false);
     setDlmmPool(null);
     setActiveBin(null);
+    setPositionInfo(null);
+    setBins([]);
 
     try {
       const connection = new Connection(rpcUrl, 'confirmed');
@@ -36,7 +48,6 @@ const DLMMConnector: React.FC = () => {
       const bin = await pool.getActiveBin();
       setActiveBin(bin);
 
-      // Fetch bins for chart
       try {
         const binsData = await pool.getBinsAroundActiveBin(40, 40);
         setBins(binsData.bins || []);
@@ -45,36 +56,10 @@ const DLMMConnector: React.FC = () => {
         setBins([]);
       }
 
-      // Set smart default triggers around current price
-      const currentPrice = parseFloat(bin?.price?.toString() || '140');
-      setTriggerPrice1(currentPrice * 1.035);
-      setTriggerPrice2(currentPrice * 0.965);
-
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to connect. Check console for details.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshActiveBin = async () => {
-    if (!dlmmPool) return;
-    setLoading(true);
-    try {
-      await dlmmPool.refetchStates();
-      const bin = await dlmmPool.getActiveBin();
-      setActiveBin(bin);
-
-      try {
-        const binsData = await dlmmPool.getBinsAroundActiveBin(40, 40);
-        setBins(binsData.bins || []);
-      } catch (e) {
-        console.warn('Refresh bins failed:', e);
-      }
-    } catch (err: any) {
-      setError('Refresh failed: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -93,30 +78,79 @@ const DLMMConnector: React.FC = () => {
     try {
       const posPubkey = new PublicKey(positionAddress);
       const position = await dlmmPool.getPosition(posPubkey);
-      console.log('Position fetched from SDK:', position);
       setPositionInfo(position);
+
+      if (position?.positionData) {
+        const lower = Number(position.positionData.lowerBinId);
+        const upper = Number(position.positionData.upperBinId);
+        const padding = 25;
+
+        try {
+          const binsData = await dlmmPool.getBinsBetweenLowerAndUpperBound(
+            lower - padding,
+            upper + padding
+          );
+          if (binsData?.bins?.length > 0) setBins(binsData.bins);
+        } catch (e) {}
+      }
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to fetch position info. Check console for details.');
+      setError(err.message || 'Failed to fetch position info.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Update trigger defaults when active bin changes
+  // Dynamically set trigger slider range + initial values
+  // Slider range is ALWAYS kept within the chart's visible price range
   useEffect(() => {
-    if (activeBin) {
-      const currentPrice = parseFloat(activeBin?.price?.toString() || '140');
-      if (triggerPrice1 === 145 && triggerPrice2 === 135) {
-        setTriggerPrice1(currentPrice * 1.035);
-        setTriggerPrice2(currentPrice * 0.965);
+    if (!success || !activeBin) return;
+
+    const currentPrice = getNumericPrice(activeBin.price || activeBin.pricePerToken);
+
+    // Calculate slider range strictly from the visible chart bins (with comfortable padding)
+    let minP = currentPrice * 0.9;
+    let maxP = currentPrice * 1.1;
+
+    if (bins.length > 0) {
+      const prices = bins
+        .map((b: any) => getNumericPrice(b.pricePerToken || b.price))
+        .filter((p: number) => p > 0);
+      if (prices.length > 0) {
+        const chartMin = Math.min(...prices);
+        const chartMax = Math.max(...prices);
+        const pad = (chartMax - chartMin) * 0.18;   // 18% padding - keeps everything in view
+        minP = Math.max(0.000001, chartMin - pad);
+        maxP = chartMax + pad;
       }
     }
-  }, [activeBin]);
+
+    setTriggerMin(minP);
+    setTriggerMax(maxP);
+
+    // Set the actual trigger line values (can be inside or at the edges of the chart)
+    if (positionInfo?.positionData?.positionBinData?.length > 0) {
+      const binData = positionInfo.positionData.positionBinData;
+      const lowerPrice = getNumericPrice(binData[0]?.pricePerToken);
+      const upperPrice = getNumericPrice(binData[binData.length - 1]?.pricePerToken);
+
+      if (lowerPrice > 0 && upperPrice > 0) {
+        // Place triggers at the position's actual lower/upper prices
+        // (these are guaranteed to be inside the chart range)
+        setTriggerPrice1(upperPrice);
+        setTriggerPrice2(lowerPrice);
+        return;
+      }
+    }
+
+    // Fallback when no position is loaded yet
+    if (currentPrice > 0) {
+      setTriggerPrice1(currentPrice * 1.008);
+      setTriggerPrice2(currentPrice * 0.992);
+    }
+  }, [success, activeBin, bins, positionInfo]);
 
   return (
     <div className="dlmm-container">
-      {/* Header */}
       <div className="dlmm-header">
         <div className="flex items-center gap-4">
           <div className="dlmm-logo">🌊</div>
@@ -131,73 +165,20 @@ const DLMMConnector: React.FC = () => {
         </div>
       </div>
 
-      {/* Inputs */}
       <div className="dlmm-input-group">
         <label className="dlmm-label">RPC Endpoint</label>
-        <input
-          type="text"
-          value={rpcUrl}
-          onChange={(e) => setRpcUrl(e.target.value)}
-          className="dlmm-input"
-          placeholder="https://solana-rpc.publicnode.com"
-        />
+        <input type="text" value={rpcUrl} onChange={(e) => setRpcUrl(e.target.value)} className="dlmm-input" />
       </div>
 
       <div className="dlmm-input-group">
         <label className="dlmm-label">DLMM Pool Address</label>
-        <input
-          type="text"
-          value={poolAddress}
-          onChange={(e) => setPoolAddress(e.target.value)}
-          className="dlmm-input"
-          placeholder="BGm1tav58oGcsQJehL9WXBFXF7D27vZsKefj4xJKD5Y"
-        />
+        <input type="text" value={poolAddress} onChange={(e) => setPoolAddress(e.target.value)} className="dlmm-input" />
       </div>
 
       <div className="dlmm-input-group">
         <label className="dlmm-label">Position Address</label>
-        <input
-          type="text"
-          value={positionAddress}
-          onChange={(e) => setPositionAddress(e.target.value)}
-          className="dlmm-input"
-          placeholder="HP2grHkQbcpFSdoFYpdsD2SEFMFinc37L1AYbbVDSUvU"
-        />
-        <p className="dlmm-helper-text">
-          Uses <span className="font-mono">dlmmPool.getPosition()</span>
-        </p>
+        <input type="text" value={positionAddress} onChange={(e) => setPositionAddress(e.target.value)} className="dlmm-input" />
       </div>
-
-      {/* Trigger Points for Chart */}
-      <div className="grid grid-cols-2 gap-4 mb-2">
-        <div className="dlmm-input-group">
-          <label className="dlmm-label flex items-center gap-2">
-            Trigger 1 <span className="text-amber-500">⚡</span> <span className="text-[10px] text-slate-400">(e.g. Take Profit)</span>
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            value={triggerPrice1}
-            onChange={(e) => setTriggerPrice1(parseFloat(e.target.value) || 0)}
-            className="dlmm-input border-amber-300 focus:border-amber-500"
-            placeholder="145.00"
-          />
-        </div>
-        <div className="dlmm-input-group">
-          <label className="dlmm-label flex items-center gap-2">
-            Trigger 2 <span className="text-violet-500">🛑</span> <span className="text-[10px] text-slate-400">(e.g. Stop Loss)</span>
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            value={triggerPrice2}
-            onChange={(e) => setTriggerPrice2(parseFloat(e.target.value) || 0)}
-            className="dlmm-input border-violet-300 focus:border-violet-500"
-            placeholder="135.00"
-          />
-        </div>
-      </div>
-      <p className="text-[10px] text-slate-400 -mt-1 mb-4">These control the horizontal trigger lines on the price chart below</p>
 
       {/* Action Buttons */}
       <div className="dlmm-buttons">
@@ -206,14 +187,7 @@ const DLMMConnector: React.FC = () => {
           disabled={loading || !poolAddress}
           className="dlmm-button dlmm-button-primary"
         >
-          {loading ? (
-            <>
-              <div className="spinner" />
-              Connecting...
-            </>
-          ) : (
-            <>Connect to Pool</>
-          )}
+          {loading ? <><div className="spinner" />Connecting...</> : <>Connect to Pool</>}
         </button>
 
         <button
@@ -221,21 +195,12 @@ const DLMMConnector: React.FC = () => {
           disabled={loading || !dlmmPool || !positionAddress}
           className="dlmm-button dlmm-button-secondary"
         >
-          {loading ? (
-            <>
-              <div className="spinner" />
-              Fetching Position...
-            </>
-          ) : (
-            <>Get Position</>
-          )}
+          {loading ? <><div className="spinner" />Fetching...</> : <>Get Position</>}
         </button>
       </div>
 
-      {/* Error */}
       {error && <div className="dlmm-error">⚠️ {error}</div>}
 
-      {/* Consolidated Status Card */}
       <StatusCard
         dlmmPool={dlmmPool}
         activeBin={activeBin}
@@ -244,7 +209,7 @@ const DLMMConnector: React.FC = () => {
         success={success}
       />
 
-      {/* Price Chart with Configurable Triggers */}
+      {/* Price Chart */}
       {success && (
         <PriceChart
           bins={bins}
@@ -257,6 +222,58 @@ const DLMMConnector: React.FC = () => {
         />
       )}
 
+      {/* Trigger Controls */}
+      {success && (
+        <div className="mt-6 p-5 bg-gray-900/50 rounded-3xl border border-indigo-900">
+          <div className="text-xs font-medium tracking-widest text-indigo-400 uppercase mb-3">TRIGGER CONTROLS</div>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="dlmm-label flex items-center gap-2 mb-2">
+                Trigger 1 (Upper) <span className="text-amber-500">⚡</span>
+              </label>
+              <input
+                type="range"
+                min={triggerMin}
+                max={triggerMax}
+                step="0.00001"
+                value={triggerPrice1}
+                onChange={(e) => setTriggerPrice1(parseFloat(e.target.value))}
+                className="w-full accent-amber-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                <span>{triggerMin.toFixed(5)}</span>
+                <span className="text-amber-400 font-semibold">{triggerPrice1.toFixed(5)}</span>
+                <span>{triggerMax.toFixed(5)}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="dlmm-label flex items-center gap-2 mb-2">
+                Trigger 2 (Lower) <span className="text-violet-500">🛑</span>
+              </label>
+              <input
+                type="range"
+                min={triggerMin}
+                max={triggerMax}
+                step="0.00001"
+                value={triggerPrice2}
+                onChange={(e) => setTriggerPrice2(parseFloat(e.target.value))}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                <span>{triggerMin.toFixed(5)}</span>
+                <span className="text-violet-400 font-semibold">{triggerPrice2.toFixed(5)}</span>
+                <span>{triggerMax.toFixed(5)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-[10px] text-slate-400 mt-3 text-center">
+            Slider stays within the chart&apos;s visible price range • Triggers start at your position limits
+          </p>
+        </div>
+      )}
     </div>
   );
 };
