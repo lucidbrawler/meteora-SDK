@@ -59,10 +59,10 @@ const DLMMConnector: React.FC = () => {
       const lower = mintStr.toLowerCase().trim();
       if (lower.includes('so11111111111111111111111111111111111111112')) return 'SOL';
       if (lower.includes('epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwytdt1v')) return 'USDC';
-      if (lower.includes('usdt')) return 'USDT';
-      if (lower.startsWith('27g8mtk7vttctchk')) return 'JLP';   // ← ROBUST JLP fix (prefix match)
-      return mintStr.slice(0, 6) + '...';
-    };
+    if (lower.includes('usdt')) return 'USDT';
+    if (lower.startsWith('27g8mtk7vttcchkp')) return 'JLP';   // ✅ FIXED JLP prefix (verified mint)
+    return mintStr.slice(0, 6) + '...';
+  };
 
     const tokenXMint = getMintString(dlmmPool.tokenX) ||
                        getMintString(dlmmPool.tokenXMint) ||
