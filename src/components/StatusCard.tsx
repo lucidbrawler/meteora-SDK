@@ -49,13 +49,14 @@ const StatusCard: React.FC<StatusCardProps> = ({
     return (num / Math.pow(10, decimals)).toFixed(6);
   };
 
-  // Token symbol mapper (add more mints as needed)
+  // Token symbol mapper – now ROBUST for JLP
   const getTokenSymbol = (mintStr?: string): string => {
     if (!mintStr) return 'Token';
-    const lower = mintStr.toLowerCase();
+    const lower = mintStr.toLowerCase().trim();
     if (lower.includes('so11111111111111111111111111111111111111112')) return 'SOL';
     if (lower.includes('epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwytdt1v')) return 'USDC';
     if (lower.includes('usdt')) return 'USDT';
+    if (lower.startsWith('27g8mtk7vttctchk')) return 'JLP';   // ← ROBUST JLP fix (prefix match)
     return mintStr.slice(0, 6) + '...';
   };
 
@@ -93,12 +94,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
            getMintString(dlmmPool.tokenYMint);
   };
 
-  const isPositionInRange = positionInfo?.positionData && activeBin ? 
-    BigInt(bnToString(activeBin.binId)) >= BigInt(bnToString(positionInfo.positionData.lowerBinId)) && 
-    BigInt(bnToString(activeBin.binId)) <= BigInt(bnToString(positionInfo.positionData.upperBinId)) 
-    : false;
-
- let tokenXSymbol = getTokenSymbol(getTokenXMint());
+  let tokenXSymbol = getTokenSymbol(getTokenXMint());
   let tokenYSymbol = getTokenSymbol(getTokenYMint());
 
   // Fallback for known SOL-USDC pool if detection fails
@@ -113,13 +109,14 @@ const StatusCard: React.FC<StatusCardProps> = ({
       console.log('DLMM Pool keys:', Object.keys(dlmmPool));
       console.log('Token X mint detected:', getTokenXMint());
       console.log('Token Y mint detected:', getTokenYMint());
+      console.log('Final symbols →', tokenXSymbol, '/', tokenYSymbol);
     }
-  }, [dlmmPool]);
+  }, [dlmmPool, tokenXSymbol, tokenYSymbol]);
 
   if (!success || !dlmmPool) return null;
 
   return (
-    <div className="dlmm-card mt-6 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50">
+    <div className="dlmm-card border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-5 h-5 bg-emerald-500 rounded-full animate-pulse flex-shrink-0" />
@@ -200,7 +197,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
             </span>
           </div>
 
-          {/* TOTAL AMOUNTS — now correctly labeled */}
+          {/* TOTAL AMOUNTS — now correctly labeled with JLP */}
           <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 mb-6 border border-indigo-100 dark:border-indigo-800">
             <div className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-3">YOUR POSITION TOTALS</div>
             <div className="grid grid-cols-2 gap-6">
@@ -251,7 +248,9 @@ const StatusCard: React.FC<StatusCardProps> = ({
                 <div className="font-mono text-3xl font-bold text-indigo-700 dark:text-indigo-300">
                   {parseFloat(positionInfo.positionData.positionBinData?.[0]?.pricePerToken || '0').toFixed(4)}
                 </div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">USDC per SOL</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {tokenYSymbol} per {tokenXSymbol}
+                </div>
               </div>
 
               {/* Upper Price */}
@@ -262,7 +261,9 @@ const StatusCard: React.FC<StatusCardProps> = ({
                 <div className="font-mono text-3xl font-bold text-indigo-700 dark:text-indigo-300">
                   {parseFloat(positionInfo.positionData.positionBinData?.slice(-1)[0]?.pricePerToken || '0').toFixed(4)}
                 </div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">USDC per SOL</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {tokenYSymbol} per {tokenXSymbol}
+                </div>
               </div>
 
               {/* Fee Owed X */}
